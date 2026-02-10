@@ -1,0 +1,49 @@
+name: Construir Analizador OCR con Tesseract
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # 1. Instalar Python
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    # 2. Instalar Tesseract en el servidor de GitHub (usando Chocolatey)
+    - name: Install Tesseract OCR
+      run: |
+        choco install tesseract --force
+        # Añadir al path para asegurar que se encuentra
+        echo "C:\Program Files\Tesseract-OCR" >> $env:GITHUB_PATH
+
+    # 3. Copiar Tesseract a la carpeta del proyecto para que PyInstaller lo vea
+    - name: Copy Tesseract for bundling
+      run: |
+        Copy-Item -Path "C:\Program Files\Tesseract-OCR" -Destination ".\Tesseract-OCR" -Recurse
+
+    # 4. Instalar librerías de Python
+    - name: Install Dependencies
+      run: |
+        pip install --upgrade pip
+        pip install pdfplumber pytesseract pillow pyinstaller
+
+    # 5. Crear el EXE incluyendo la carpeta de Tesseract dentro
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller --noconfirm --onefile --console --name "AnalizadorAceiteOCR" --add-data "Tesseract-OCR;Tesseract-OCR" analizador_etiquetas_aceite_ocr.py
+
+    # 6. Subir el resultado para que lo descargues
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Ejecutable-Analizador-OCR
+        path: dist/AnalizadorAceiteOCR.exe
